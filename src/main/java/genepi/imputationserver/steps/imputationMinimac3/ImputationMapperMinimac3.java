@@ -22,7 +22,8 @@ import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Mapper;
 
-public class ImputationMapperMinimac3 extends Mapper<LongWritable, Text, Text, Text> {
+public class ImputationMapperMinimac3 extends
+		Mapper<LongWritable, Text, Text, Text> {
 
 	private ImputationPipelineMinimac3 pipeline;
 
@@ -56,26 +57,34 @@ public class ImputationMapperMinimac3 extends Mapper<LongWritable, Text, Text, T
 
 	private String refEaglePattern = "";
 
+	private int phasingWindow;
+
 	private Log log;
 
-	protected void setup(Context context) throws IOException, InterruptedException {
+	protected void setup(Context context) throws IOException,
+			InterruptedException {
 
 		log = new Log(context);
 
 		// get parameters
 		ParameterStore parameters = new ParameterStore(context);
 		pattern = parameters.get(ImputationJobMinimac3.REF_PANEL_PATTERN);
-		mapShapeITPattern = parameters.get(ImputationJobMinimac3.MAP_SHAPEIT_PATTERN);
-		mapHapiURPattern = parameters.get(ImputationJobMinimac3.MAP_HAPIUR_PATTERN);
+		mapShapeITPattern = parameters
+				.get(ImputationJobMinimac3.MAP_SHAPEIT_PATTERN);
+		mapHapiURPattern = parameters
+				.get(ImputationJobMinimac3.MAP_HAPIUR_PATTERN);
 		output = parameters.get(ImputationJobMinimac3.OUTPUT);
 		population = parameters.get(ImputationJobMinimac3.POPULATION);
 		phasing = parameters.get(ImputationJobMinimac3.PHASING);
 		rounds = parameters.get(ImputationJobMinimac3.ROUNDS);
 		window = parameters.get(ImputationJobMinimac3.WINDOW);
 		String hdfsPath = parameters.get(ImputationJobMinimac3.REF_PANEL_HDFS);
-		String hdfsPathShapeITMap = parameters.get(ImputationJobMinimac3.MAP_SHAPEIT_HDFS);
-		String hdfsPathHapiURMap = parameters.get(ImputationJobMinimac3.MAP_HAPIUR_HDFS);
-		String hdfsPathMapEagle = parameters.get(ImputationJobMinimac3.MAP_EAGLE_HDFS);
+		String hdfsPathShapeITMap = parameters
+				.get(ImputationJobMinimac3.MAP_SHAPEIT_HDFS);
+		String hdfsPathHapiURMap = parameters
+				.get(ImputationJobMinimac3.MAP_HAPIUR_HDFS);
+		String hdfsPathMapEagle = parameters
+				.get(ImputationJobMinimac3.MAP_EAGLE_HDFS);
 		String referencePanel = FileUtil.getFilename(hdfsPath);
 
 		String mapShapeIT = "";
@@ -102,11 +111,13 @@ public class ImputationMapperMinimac3 extends Mapper<LongWritable, Text, Text, T
 		mapHapiURFilename = cache.getArchive(mapHapiUR);
 		mapEagleFilename = cache.getFile(mapEagle);
 
-		refEaglePattern = parameters.get(ImputationJobMinimac3.REF_PANEL_EAGLE_PATTERN);
+		refEaglePattern = parameters
+				.get(ImputationJobMinimac3.REF_PANEL_EAGLE_PATTERN);
 		String chr = parameters.get(ImputationJobMinimac3.CHROMOSOME);
 		String chrFilename = refEaglePattern.replaceAll("\\$chr", chr);
 		refEagleFilename = cache.getFile(FileUtil.getFilename(chrFilename));
-		String indexFilename = cache.getFile(FileUtil.getFilename(chrFilename + ".csi"));
+		String indexFilename = cache.getFile(FileUtil.getFilename(chrFilename
+				+ ".csi"));
 
 		String minimacCommand = cache.getFile(minimacBin);
 		String hapiUrCommand = cache.getFile("hapi-ur");
@@ -125,17 +136,19 @@ public class ImputationMapperMinimac3 extends Mapper<LongWritable, Text, Text, T
 		FileUtil.createDirectory(folder);
 
 		// create symbolic link --> index file is in the same folder as data
-		
+
 		if (!chr.startsWith("X")) {
-			Files.createSymbolicLink(Paths.get(FileUtil.path(folder, "ref_" + chr + ".bcf")),
+			Files.createSymbolicLink(
+					Paths.get(FileUtil.path(folder, "ref_" + chr + ".bcf")),
 					Paths.get(refEagleFilename));
-			Files.createSymbolicLink(Paths.get(FileUtil.path(folder, "ref_" + chr + ".bcf.csi")),
+			Files.createSymbolicLink(
+					Paths.get(FileUtil.path(folder, "ref_" + chr + ".bcf.csi")),
 					Paths.get(indexFilename));
 			// update reference path to symbolic link
 			refEagleFilename = FileUtil.path(folder, "ref_" + chr + ".bcf");
 		}
 
-		int phasingWindow = Integer.parseInt(store.getString("phasing.window"));
+		phasingWindow = Integer.parseInt(store.getString("phasing.window"));
 
 		// config pipeline
 		pipeline = new ImputationPipelineMinimac3();
@@ -157,7 +170,8 @@ public class ImputationMapperMinimac3 extends Mapper<LongWritable, Text, Text, T
 	}
 
 	@Override
-	protected void cleanup(Context context) throws IOException, InterruptedException {
+	protected void cleanup(Context context) throws IOException,
+			InterruptedException {
 
 		// delete temp directory
 		log.close();
@@ -165,7 +179,8 @@ public class ImputationMapperMinimac3 extends Mapper<LongWritable, Text, Text, T
 
 	}
 
-	public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
+	public void map(LongWritable key, Text value, Context context)
+			throws IOException, InterruptedException {
 
 		if (value.toString() == null || value.toString().isEmpty()) {
 			return;
@@ -202,21 +217,51 @@ public class ImputationMapperMinimac3 extends Mapper<LongWritable, Text, Text, T
 		log.info("  " + chunk.toString() + " Snps in info chunk: " + snpInfo);
 
 		// store info file
-		HdfsUtil.put(outputChunk.getInfoFixedFilename(), HdfsUtil.path(output, chunk + ".info"));
+		HdfsUtil.put(outputChunk.getInfoFixedFilename(),
+				HdfsUtil.path(output, chunk + ".info"));
 
 		long start = System.currentTimeMillis();
 
 		// store vcf file (remove header)
 		BgzipSplitOutputStream outData = new BgzipSplitOutputStream(
-				HdfsUtil.create(HdfsUtil.path(output, chunk + ".data.dose.vcf.gz")));
+				HdfsUtil.create(HdfsUtil.path(output, chunk
+						+ ".data.dose.vcf.gz")));
 
 		BgzipSplitOutputStream outHeader = new BgzipSplitOutputStream(
-				HdfsUtil.create(HdfsUtil.path(output, chunk + ".header.dose.vcf.gz")));
+				HdfsUtil.create(HdfsUtil.path(output, chunk
+						+ ".header.dose.vcf.gz")));
 
-		FileMerger.splitIntoHeaderAndData(outputChunk.getImputedVcfFilename(), outHeader, outData);
+		FileMerger.splitIntoHeaderAndData(outputChunk.getImputedVcfFilename(),
+				outHeader, outData);
 		long end = System.currentTimeMillis();
 
 		System.out.println("Time filter and put: " + (end - start) + " ms");
 
+		// store phased overlapping regions when phasing is eagle
+		if ((phasing.equals("eagle") || phasing.equals("hapiur"))
+				&& !outputChunk.isPhased()) {
+
+			System.out.println("Phased output. Store additional files.");
+
+			start = System.currentTimeMillis();
+			BgzipSplitOutputStream outPhasedHead = new BgzipSplitOutputStream(
+					HdfsUtil.create(HdfsUtil.path(output, chunk
+							+ ".phased.head.vcf.gz")));
+
+			FileMerger.writeVcfFile(outputChunk.getPhasedVcfFilename(),
+					outPhasedHead, chunk.getStart() - phasingWindow,
+					chunk.getStart() + phasingWindow);
+
+			BgzipSplitOutputStream outPhasedTail = new BgzipSplitOutputStream(
+					HdfsUtil.create(HdfsUtil.path(output, chunk
+							+ ".phased.tail.vcf.gz")));
+			FileMerger.writeVcfFile(outputChunk.getPhasedVcfFilename(),
+					outPhasedTail, chunk.getEnd() - phasingWindow,
+					chunk.getEnd() + phasingWindow);
+
+			end = System.currentTimeMillis();
+
+			System.out.println("Time head and tail: " + (end - start) + " ms");
+		}
 	}
 }

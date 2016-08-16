@@ -21,7 +21,7 @@ public class MergedVcfFile {
 		output = new FileOutputStream(filename);
 	}
 
-	public void addFile(InputStream input) throws IOException {
+	public void addFile(InputStream input, boolean swapFile) throws IOException {
 		IOUtils.copy(input, output);
 		input.close();
 	}

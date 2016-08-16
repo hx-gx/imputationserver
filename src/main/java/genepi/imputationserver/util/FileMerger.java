@@ -11,7 +11,6 @@ import java.util.List;
 import java.util.Vector;
 import java.util.zip.GZIPOutputStream;
 
-import org.apache.commons.compress.compressors.gzip.GzipCompressorOutputStream;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
@@ -38,6 +37,27 @@ public class FileMerger {
 		reader.close();
 	}
 
+	public static void writeVcfFile(String input, OutputStream outData,
+			int start, int end) throws IOException {
+		LineReader reader = new LineReader(input);
+		while (reader.next()) {
+			String line = reader.get();					
+			if (line.startsWith("#")) {				
+				outData.write(line.getBytes());
+				outData.write("\n".getBytes());
+			} else {
+				String tiles[] = line.split("\t", 3);
+				int pos = Integer.parseInt(tiles[1]);
+				if (pos >= start && pos <= end){
+					outData.write(line.getBytes());
+					outData.write("\n".getBytes());
+				}
+			}
+		}
+		outData.close();
+		reader.close();		
+	}
+
 	public static class BgzipSplitOutputStream extends
 			BlockCompressedOutputStream {
 
@@ -52,92 +72,61 @@ public class FileMerger {
 
 	}
 
-	public static int splitIntoHeaderAndData(String input, String outputPrefix)
-			throws IOException {
-		boolean firstHeader = true;
-		int snps = 0;
+	/*
+	 * public static int splitIntoHeaderAndData(String input, String
+	 * outputPrefix) throws IOException { boolean firstHeader = true; int snps =
+	 * 0;
+	 * 
+	 * int chunk = 0; GzipCompressorOutputStream outHeader = new
+	 * GzipCompressorOutputStream( new FileOutputStream(outputPrefix +
+	 * ".header.vcf.gz")); GzipCompressorOutputStream outData = new
+	 * GzipCompressorOutputStream( new FileOutputStream(outputPrefix + "_" +
+	 * chunk + ".data.vcf.gz"));
+	 * 
+	 * LineReader reader = new LineReader(input); while (reader.next()) { String
+	 * line = reader.get(); if (!line.startsWith("#")) {
+	 * outData.write("\n".getBytes()); outData.write(line.getBytes()); snps++;
+	 * 
+	 * if (snps % 10000 == 0) { outData.close(); chunk++; outData = new
+	 * GzipCompressorOutputStream( new FileOutputStream(outputPrefix + "_" +
+	 * chunk + ".data.vcf.gz"));
+	 * 
+	 * }
+	 * 
+	 * } else { if (!firstHeader) { outHeader.write("\n".getBytes()); }
+	 * firstHeader = false; outHeader.write(line.getBytes()); } }
+	 * outData.close(); outHeader.close();
+	 * 
+	 * reader.close(); return chunk; }
+	 */
 
-		int chunk = 0;
-		GzipCompressorOutputStream outHeader = new GzipCompressorOutputStream(
-				new FileOutputStream(outputPrefix + ".header.vcf.gz"));
-		GzipCompressorOutputStream outData = new GzipCompressorOutputStream(
-				new FileOutputStream(outputPrefix + "_" + chunk
-						+ ".data.vcf.gz"));
-
-		LineReader reader = new LineReader(input);
-		while (reader.next()) {
-			String line = reader.get();
-			if (!line.startsWith("#")) {
-				outData.write("\n".getBytes());
-				outData.write(line.getBytes());
-				snps++;
-
-				if (snps % 10000 == 0) {
-					outData.close();
-					chunk++;
-					outData = new GzipCompressorOutputStream(
-							new FileOutputStream(outputPrefix + "_" + chunk
-									+ ".data.vcf.gz"));
-
-				}
-
-			} else {
-				if (!firstHeader) {
-					outHeader.write("\n".getBytes());
-				}
-				firstHeader = false;
-				outHeader.write(line.getBytes());
-			}
-		}
-		outData.close();
-		outHeader.close();
-
-		reader.close();
-		return chunk;
-	}
-
-	public static int splitIntoHeaderAndDataBgZip(String input,
-			String outputPrefix) throws IOException {
-		boolean firstHeader = true;
-		int snps = 0;
-
-		int chunk = 0;
-		BgzipSplitOutputStream outHeader = new BgzipSplitOutputStream(
-				new FileOutputStream(outputPrefix + ".header.vcf.gz"));
-		BgzipSplitOutputStream outData = new BgzipSplitOutputStream(
-				new FileOutputStream(outputPrefix + "_" + chunk
-						+ ".data.vcf.gz"));
-
-		LineReader reader = new LineReader(input);
-		while (reader.next()) {
-			String line = reader.get();
-			if (!line.startsWith("#")) {
-				outData.write("\n".getBytes());
-				outData.write(line.getBytes());
-				snps++;
-
-				if (snps % 10000 == 0) {
-					outData.close();
-					chunk++;
-					outData = new BgzipSplitOutputStream(new FileOutputStream(
-							outputPrefix + "_" + chunk + ".data.vcf.gz"));
-
-				}
-
-			} else {
-				if (!firstHeader) {
-					outHeader.write("\n".getBytes());
-				}
-				firstHeader = false;
-				outHeader.write(line.getBytes());
-			}
-		}
-		outData.close();
-		outHeader.close();
-
-		reader.close();
-		return chunk;
-	}
+	/*
+	 * public static int splitIntoHeaderAndDataBgZip(String input, String
+	 * outputPrefix) throws IOException { boolean firstHeader = true; int snps =
+	 * 0;
+	 * 
+	 * int chunk = 0; BgzipSplitOutputStream outHeader = new
+	 * BgzipSplitOutputStream( new FileOutputStream(outputPrefix +
+	 * ".header.vcf.gz")); BgzipSplitOutputStream outData = new
+	 * BgzipSplitOutputStream( new FileOutputStream(outputPrefix + "_" + chunk +
+	 * ".data.vcf.gz"));
+	 * 
+	 * LineReader reader = new LineReader(input); while (reader.next()) { String
+	 * line = reader.get(); if (!line.startsWith("#")) {
+	 * outData.write("\n".getBytes()); outData.write(line.getBytes()); snps++;
+	 * 
+	 * if (snps % 10000 == 0) { outData.close(); chunk++; outData = new
+	 * BgzipSplitOutputStream(new FileOutputStream( outputPrefix + "_" + chunk +
+	 * ".data.vcf.gz"));
+	 * 
+	 * }
+	 * 
+	 * } else { if (!firstHeader) { outHeader.write("\n".getBytes()); }
+	 * firstHeader = false; outHeader.write(line.getBytes()); } }
+	 * outData.close(); outHeader.close();
+	 * 
+	 * reader.close(); return chunk; }
+	 */
 
 	public static void mergeAndGz(String local, String hdfs,
 			boolean removeHeader, String ext) throws IOException {
@@ -211,7 +200,7 @@ public class FileMerger {
 				in.close();
 
 			}
-			
+
 			out.close();
 		}
 
